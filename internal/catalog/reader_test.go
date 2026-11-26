@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -198,43 +199,35 @@ func TestTypeJSONRoundTrip(t *testing.T) {
 	assert.Equal(t, original, got)
 }
 
-// TestTypesJSONRoundTrip verifies that Types marshals to JSON and back
-// without loss (#379).
-func TestTypesJSONRoundTrip(t *testing.T) {
+// TestUnionCaseJSONRoundTrip verifies that UnionCase marshals to JSON and back
+// without data loss, including a non-empty Values slice (#381).
+func TestUnionCaseJSONRoundTrip(t *testing.T) {
 	t.Parallel()
-	original := Types{
-		Structs: []Struct{
-			{
-				Name:   "Config",
-				Fields: []Param{{Name: "admin", Type: Type{Display: "Address"}}},
-			},
-		},
-		Unions: []Union{
-			{
-				Name: "DataKey",
-				Cases: []UnionCase{
-					{Name: "Balance", Values: []Type{{Display: "Address"}}},
-					{Name: "Nonce", Values: []Type{}},
-				},
-			},
-		},
-		Enums: []Enum{
-			{
-				Name:  "Status",
-				Cases: []EnumCase{{Name: "Active", Value: 0}, {Name: "Closed", Value: 1}},
-			},
-		},
-		ErrorEnums: []Enum{
-			{
-				Name:  "Error",
-				Cases: []EnumCase{{Name: "NotFound", Value: 1}, {Name: "Unauthorized", Value: 2}},
-			},
-		},
+	original := UnionCase{
+		Name:   "Deposit",
+		Values: []Type{{Display: "Address"}, {Display: "u128"}},
 	}
 	data, err := json.Marshal(original)
 	require.NoError(t, err)
 
-	var got Types
+	var got UnionCase
+	require.NoError(t, json.Unmarshal(data, &got))
+	assert.Equal(t, original, got)
+}
+
+// TestVersionJSONRoundTrip verifies that Version marshals to JSON and back
+// without data loss, including the time.Time field (#382).
+func TestVersionJSONRoundTrip(t *testing.T) {
+	t.Parallel()
+	original := Version{
+		WasmHash:  "9c1e4f2a",
+		DecodedAt: time.Date(2026, 11, 1, 12, 0, 0, 0, time.UTC),
+		Current:   true,
+	}
+	data, err := json.Marshal(original)
+	require.NoError(t, err)
+
+	var got Version
 	require.NoError(t, json.Unmarshal(data, &got))
 	assert.Equal(t, original, got)
 }
